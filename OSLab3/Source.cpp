@@ -5,7 +5,7 @@
 #include <vector>
 using namespace std;
 
-void WriteToCurrentPosition(HANDLE hFile, string result);
+#define ROW_COUNT 4
 
 bool CountSymThread(string command)
 {
@@ -176,25 +176,26 @@ int OwnFunction(int argc, char* argv[])
 
 	HANDLE hIn, hOut;
 	int lineCount;
-	int* lineNumbers;
+	int lineNumbers[ROW_COUNT];
 	char* inputFileName, * outputFileName;
 
-	if (argc != 7) {
+	if (argc != 8) {
 		printf_s("ньхайю! ббедемн мебепмне йнк-бн юпцслемрнб!\n");
 		return 1;
 	}
 
 	lineCount = atoi(argv[1]);
-	lineNumbers = (int*)malloc(sizeof(int) * lineCount);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < ROW_COUNT; i++)
 		lineNumbers[i] = atoi(argv[i + 2]);
 
-	inputFileName = argv[5];
-	outputFileName = argv[6];
+	inputFileName = argv[6];
+	outputFileName = argv[7];
 
 	hIn = CreateFileA(inputFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	hOut = CreateFileA(outputFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	SetFilePointer(hOut, 0, NULL, FILE_END);
 
 	char currentByte;
 	int currentLineNumber = 1;
@@ -202,7 +203,7 @@ int OwnFunction(int argc, char* argv[])
 	string result;
 
 	while (ReadFile(hIn, &currentByte, 1, &numberOfBytes, NULL) > 0 && numberOfBytes > 0) {
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < ROW_COUNT; i++) {
 			if (lineNumbers[i] == currentLineNumber) {
 				result += currentByte;
 				break;
@@ -213,21 +214,21 @@ int OwnFunction(int argc, char* argv[])
 			currentLineNumber++;
 
 			if (result.size()) {
-				WriteToCurrentPosition(hOut, result);
-				printf_s("гюохяюмю ярпнйю: ");
+				printf_s("гюохяэ ярпнйх: ");
 				puts(result.c_str());
 
+				WriteFile(hOut, result.c_str(), result.size(), NULL, NULL);
 				result.clear();
 			}
 		}
 	}
 
-	BOOL res = SetFileAttributesA(outputFileName, FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_HIDDEN);
+	BOOL res = SetFileAttributesA(outputFileName, FILE_ATTRIBUTE_ENCRYPTED | FILE_ATTRIBUTE_ARCHIVE);
 
 	CloseHandle(hIn);
 	CloseHandle(hOut);
 
-	free(lineNumbers);
+	printf_s("ярпнйх сяоеьмн яйнохпнбюмш\n");
 	return 0;
 }
 
@@ -383,33 +384,4 @@ int main()
 	}
 	system("pause");
 	return 0;
-}
-
-void WriteToCurrentPosition(HANDLE hFile, string result) {
-	DWORD currentPos = SetFilePointer(hFile, 0, 0, FILE_CURRENT);
-	int currentBufferPos = 0;
-
-	string buff = result;
-
-	char currentByte;
-	DWORD numberOfBytes;
-
-	while (ReadFile(hFile, &currentByte, 1, &numberOfBytes, NULL) > 0 && numberOfBytes > 0) {
-		SetFilePointer(hFile, -1, NULL, FILE_CURRENT);
-
-		WriteFile(hFile, &(buff[currentBufferPos]), 1, NULL, NULL);
-		buff[currentBufferPos] = currentByte;
-
-		if (++currentBufferPos == result.size())
-			currentBufferPos = 0;
-	}
-
-	int endOfFilePos = currentBufferPos;
-
-	for (int i = endOfFilePos; i < result.size(); i++)
-		WriteFile(hFile, &(buff[i]), 1, NULL, NULL);
-	for (int i = 0; i < endOfFilePos; i++)
-		WriteFile(hFile, &(buff[i]), 1, NULL, NULL);
-
-	SetFilePointer(hFile, currentPos + result.size(), NULL, FILE_BEGIN);
 }
